@@ -105,11 +105,33 @@ class CombinedApp:
         self.image_path = filedialog.askopenfilename()
         if self.image_path:
             self.img = cv2.imread(self.image_path)
-            self.is_gray = len(self.img.shape) == 2 or self.img.shape[2] == 1
+            
+            # Check if the image is grayscale by ensuring it has only one channel or all channels are equal
+            if len(self.img.shape) == 2:  # Only one channel (grayscale)
+                self.is_gray = True
+            elif len(self.img.shape) == 3 and self.img.shape[2] == 3:
+                # Check if all channels are the same, indicating grayscale
+                self.is_gray = np.all(self.img[:, :, 0] == self.img[:, :, 1]) and np.all(self.img[:, :, 0] == self.img[:, :, 2])
+            else:
+                self.is_gray = False
+            print(self.is_gray)
+    
             self.display_image(self.img)
 
     def display_image(self, img):
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB) if self.is_gray else cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if img is None:
+            print("Image not loaded properly.")
+            return
+
+        # Determine the color conversion based on grayscale check
+        if self.is_gray:
+            if len(img.shape) == 2:  # Directly grayscale
+                img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            else:  # Check for images that may appear grayscale but have 3 channels
+                img_rgb = cv2.cvtColor(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2RGB)
+        else:
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    
         im_pil = Image.fromarray(img_rgb)
         imgtk = ImageTk.PhotoImage(image=im_pil)
         self.image_label.configure(image=imgtk)
@@ -159,6 +181,7 @@ class CombinedApp:
                 channels = cv2.split(self.img)
                 filtered_channels = [cv2.medianBlur(ch, kernel_size) for ch in channels]
                 filtered_image = cv2.merge(filtered_channels)
+            #print(self.is_gray)
 
         elif filter_type == "MIN Filter":
             kernel = np.ones((kernel_size, kernel_size), np.uint8)
