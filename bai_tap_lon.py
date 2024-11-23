@@ -48,7 +48,7 @@ class CombinedApp:
         morph_widgets['shape_combo'] = ttk.Combobox(self.root, values=["Rectangle", "Ellipse", "Cross"])
         morph_widgets['shape_combo'].current(0)
         
-        morph_widgets['kernel_size_scale'] = Scale(self.root, from_=1, to=21, orient=tk.HORIZONTAL, label="Kernel Size")
+        morph_widgets['kernel_size_scale'] = Scale(self.root, from_=1, to=21, orient=tk.HORIZONTAL, label="Kernel Size", resolution=2)
         morph_widgets['kernel_size_scale'].set(3)
 
         morph_widgets['apply_button'] = Button(self.root, text="Apply Morphology", command=self.apply_morphology)
@@ -114,7 +114,7 @@ class CombinedApp:
                 self.is_gray = np.all(self.img[:, :, 0] == self.img[:, :, 1]) and np.all(self.img[:, :, 0] == self.img[:, :, 2])
             else:
                 self.is_gray = False
-            print(self.is_gray)
+            #print(self.is_gray)
     
             self.display_image(self.img)
 
@@ -140,7 +140,7 @@ class CombinedApp:
     def apply_morphology(self):
         if self.image_path is None:
             return
-        
+    
         # Convert to grayscale for morphological operations
         gray_image = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY) if not self.is_gray else self.img
         _, binary_image = cv2.threshold(gray_image, self.morph_widgets['threshold_slider'].get(), 255, cv2.THRESH_BINARY)
@@ -148,8 +148,13 @@ class CombinedApp:
         shape = self.morph_widgets['shape_combo'].get()
         self.kernel_shape = {'Rectangle': cv2.MORPH_RECT, 'Ellipse': cv2.MORPH_ELLIPSE, 'Cross': cv2.MORPH_CROSS}.get(shape, cv2.MORPH_RECT)
         
+        # Ensure kernel size is odd
         kernel_size = self.morph_widgets['kernel_size_scale'].get()
+        if kernel_size % 2 == 0:
+            kernel_size += 1  # Adjust to the next odd number
+        
         kernel = cv2.getStructuringElement(self.kernel_shape, (kernel_size, kernel_size))
+        print(kernel)
         
         operation = self.morph_widgets['operation_combo'].get()
         if operation == 'Erosion':
@@ -173,6 +178,7 @@ class CombinedApp:
 
         filter_type = self.filter_widgets['filter_combo'].get()
         
+        #padding giá trị pixel cần tranform 
         if filter_type == "Median Filter":
             if self.is_gray:
                 filtered_image = cv2.medianBlur(self.img, kernel_size)
