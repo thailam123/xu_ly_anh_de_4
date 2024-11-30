@@ -64,6 +64,9 @@ class CombinedApp:
         filter_widgets['filter_combo'] = ttk.Combobox(self.root, values=["Median Filter", "MIN Filter", "MAX Filter"])
         filter_widgets['filter_combo'].set("Median Filter")
         
+        filter_widgets['kernel_shape_combo'] = ttk.Combobox(self.root, values=["Rectangle", "Ellipse", "Cross"])
+        filter_widgets['kernel_shape_combo'].set("Rectangle")
+        
         # Set kernel size scale with odd numbers only (1, 3, 5, ..., 21)
         filter_widgets['kernel_size_scale'] = Scale(self.root, from_=1, to=21, orient=tk.HORIZONTAL, label="Kernel Size", resolution=2)
         filter_widgets['kernel_size_scale'].set(3)
@@ -75,7 +78,6 @@ class CombinedApp:
     
         return filter_widgets
 
-
     def switch_mode(self, event):
         mode = self.mode_combo.get()
         if mode == "Morphological Operations":
@@ -84,6 +86,12 @@ class CombinedApp:
         elif mode == "Image Filters":
             self.show_filter_widgets()
             self.hide_morph_widgets()
+            filter_type = self.filter_widgets['filter_combo'].get()
+            # Ensure kernel shape combobox is hidden for Median Filter mode
+            if filter_type == "Median Filter":
+                self.filter_widgets['kernel_shape_combo'].pack_forget()
+            else:
+                self.filter_widgets['kernel_shape_combo'].pack()
 
     def show_morph_widgets(self):
         for widget in self.morph_widgets.values():
@@ -114,7 +122,6 @@ class CombinedApp:
                 self.is_gray = np.all(self.img[:, :, 0] == self.img[:, :, 1]) and np.all(self.img[:, :, 0] == self.img[:, :, 2])
             else:
                 self.is_gray = False
-            #print(self.is_gray)
     
             self.display_image(self.img)
 
@@ -171,14 +178,26 @@ class CombinedApp:
     def apply_filter(self):
         if self.image_path is None:
             return
-        
+    
         kernel_size = self.filter_widgets['kernel_size_scale'].get()
         if kernel_size % 2 == 0:
-            kernel_size += 1
-
+            kernel_size += 1  # Ensure kernel size is odd
+    
         filter_type = self.filter_widgets['filter_combo'].get()
         
-        #padding giá trị pixel cần tranform 
+        # Hide kernel shape combobox for Median Filter
+        if filter_type == "Median Filter":
+            self.filter_widgets['kernel_shape_combo'].pack_forget()
+        else:
+            self.filter_widgets['kernel_shape_combo'].pack()
+        
+        kernel_shape_name = self.filter_widgets['kernel_shape_combo'].get() if filter_type != "Median Filter" else "Rectangle"
+        kernel_shape = {'Rectangle': cv2.MORPH_RECT, 'Ellipse': cv2.MORPH_ELLIPSE, 'Cross': cv2.MORPH_CROSS}.get(kernel_shape_name, cv2.MORPH_RECT)
+        
+        # Create the kernel
+        kernel = cv2.getStructuringElement(kernel_shape, (kernel_size, kernel_size))
+    
+        # Apply filter based on selection
         if filter_type == "Median Filter":
             if self.is_gray:
                 filtered_image = cv2.medianBlur(self.img, kernel_size)
@@ -187,20 +206,18 @@ class CombinedApp:
                 channels = cv2.split(self.img)
                 filtered_channels = [cv2.medianBlur(ch, kernel_size) for ch in channels]
                 filtered_image = cv2.merge(filtered_channels)
-            #print(self.is_gray)
-
+    
         elif filter_type == "MIN Filter":
-            kernel = np.ones((kernel_size, kernel_size), np.uint8)
             if self.is_gray:
                 filtered_image = cv2.erode(self.img, kernel)
             else:
                 # Apply MIN filter to each color channel separately
                 channels = cv2.split(self.img)
+                print(kernel)
                 min_filtered_channels = [cv2.erode(ch, kernel) for ch in channels]
                 filtered_image = cv2.merge(min_filtered_channels)
-
+    
         elif filter_type == "MAX Filter":
-            kernel = np.ones((kernel_size, kernel_size), np.uint8)
             if self.is_gray:
                 filtered_image = cv2.dilate(self.img, kernel)
             else:
