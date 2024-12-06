@@ -29,9 +29,15 @@ class CombinedApp:
             root, text="Load Image", command=self.load_image)
         self.load_button.pack()
 
-        # Image display
-        self.image_label = Label(root)
-        self.image_label.pack()
+        # Frames for original and processed images
+        self.image_frame = tk.Frame(root)
+        self.image_frame.pack()
+
+        self.original_image_label = Label(self.image_frame, text="Original Image")
+        self.original_image_label.grid(row=0, column=0, padx=10, pady=10)
+
+        self.processed_image_label = Label(self.image_frame, text="Processed Image")
+        self.processed_image_label.grid(row=0, column=1, padx=10, pady=10)
 
         # Define morphology-specific widgets
         self.morph_widgets = self.create_morph_widgets()
@@ -138,9 +144,9 @@ class CombinedApp:
             else:
                 self.is_gray = False
 
-            self.display_image(self.img)
+            self.display_image(self.img, is_original=True)
 
-    def display_image(self, img):
+    def display_image(self, img,is_original=False):
         if img is None:
             print("Image not loaded properly.")
             return
@@ -157,8 +163,14 @@ class CombinedApp:
 
         im_pil = Image.fromarray(img_rgb)
         imgtk = ImageTk.PhotoImage(image=im_pil)
-        self.image_label.configure(image=imgtk)
-        self.image_label.image = imgtk
+        
+        # Update the appropriate label
+        if is_original:
+            self.original_image_label.configure(image=imgtk)
+            self.original_image_label.image = imgtk
+        else:
+            self.processed_image_label.configure(image=imgtk)
+            self.processed_image_label.image = imgtk
 
     def apply_morphology(self):
         if self.image_path is None:
@@ -169,6 +181,9 @@ class CombinedApp:
             self.img, cv2.COLOR_BGR2GRAY) if not self.is_gray else self.img
         _, binary_image = cv2.threshold(
             gray_image, self.morph_widgets['threshold_slider'].get(), 255, cv2.THRESH_BINARY)
+
+        #update original image when use threshold
+        self.display_image(binary_image, is_original=True)
 
         shape = self.morph_widgets['shape_combo'].get()
         self.kernel_shape = {'Rectangle': cv2.MORPH_RECT, 'Ellipse': cv2.MORPH_ELLIPSE,
@@ -195,7 +210,7 @@ class CombinedApp:
             processed_image = cv2.morphologyEx(
                 binary_image, cv2.MORPH_CLOSE, kernel)
 
-        self.display_image(processed_image)
+        self.display_image(processed_image, is_original=False)
 
     def apply_filter(self):
         if self.image_path is None:
@@ -260,7 +275,7 @@ class CombinedApp:
                     cv2.dilate(ch, kernel) for ch in channels]
                 filtered_image = cv2.merge(max_filtered_channels)
 
-        self.display_image(filtered_image)
+        self.display_image(filtered_image, is_original=False)
 
 
 # Create the main window
